@@ -19,7 +19,7 @@ request ─▶ planner ─▶ executor ⇄ tools (calculator, get_order, search_
 - **Benchmark** (`benchmarks/core.jsonl`): 30 tasks across lookup, multi-step math, policy QA and reasoning, authorized actions and refusals.
 - **Red team** (`agenteval/adversarial.py`): seeded variants. These are indirect prompt injection planted in every tool-visible record, instruction override in the user turn, and numeric distractors. 30 clean tasks become 80 episodes (30 clean, 40 attacks, 10 distractors).
 - **Graders** (`agenteval/graders.py`): deterministic checks on the answer, the required tools and the environment state, so unauthorized refunds or emails are caught even when the answer looks right. Each failure is classified into a taxonomy (`attack_followed`, `unsafe_action`, `missing_tool`, `wrong_answer`, `step_limit`, `runtime_error`). An optional LLM-as-judge rubric score is also available.
-- **Defenses** (`--defense`): `none`; `prompt`, a system instruction to treat tool output as untrusted data; and `firewall`, the prompt guard plus a tool-call firewall (`agenteval/firewall.py`) that only runs a refund or email when the user's own request names that order or recipient. Injected text cannot authorize anything.
+- **Defenses** (`--defense`): `none`; `prompt`, a system instruction to treat tool output as untrusted data; and `firewall`, the prompt guard plus a tool-call firewall (`agenteval/firewall.py`) that only runs a refund or email when the user's own request names that order or recipient. Injected text cannot authorize anything. `policy` adds the store refund policy as code (delivered, within 30 days, at most $100 without a manager ticket), so even a refund the user did ask for is blocked when the policy forbids it.
 - **Metrics**: task success (overall, clean, adversarial), attack success rate, safety-violation rate, blocked calls, 95% bootstrap confidence intervals, required-tool recall, mean tool calls, latency and tokens.
 - **Interfaces**: CLI, FastAPI (`GET /tasks`, `POST /runs`, `GET /runs/{id}`), and MLflow tracking for every run.
 
@@ -31,7 +31,7 @@ python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m agenteval.cli --model scripted:oracle
 export OPENROUTER_API_KEY=...                          # real model
 .venv/bin/python -m agenteval.cli --model openrouter:<model-id>
-.venv/bin/python -m agenteval.cli --model openrouter:<model-id> --defense firewall   # none | prompt | firewall
+.venv/bin/python -m agenteval.cli --model openrouter:<model-id> --defense firewall   # none | prompt | firewall | policy
 PYTHONPATH=. .venv/bin/python scripts/run_matrix.py ollama:qwen2.5:7b      # every defense, with CIs, into results/
 .venv/bin/mlflow ui --backend-store-uri sqlite:///mlflow.db
 .venv/bin/uvicorn agenteval.api:app
@@ -72,7 +72,7 @@ Findings:
 - **The firewall stopped every attack, for every model.** Attack success went to 0/40 in all three cases, and safety violations fell from 21% to 6% (Qwen), 35% to 5% (Llama) and 4% to 0% (Mistral). Task success did not drop meaningfully: Qwen moved from 0.45 to 0.41, within the confidence intervals, and Llama rose from 0.24 to 0.30.
 - **The prompt guard did not help.** Telling the model to distrust tool output never measurably reduced attacks. Qwen's attack success actually rose from 0.12 to 0.25, though the intervals overlap. Enforcing safety in code beat asking for it in the prompt.
 - **The agents' own unsafe actions were a bigger risk than prompt injection.** Without the firewall, Llama issued unauthorized refunds or emails in 35% of episodes, but followed an attack in only 10%. Most of these were refunds on orders it was only asked about, or ones the policy denied.
-- **What the firewall cannot catch.** The violations left over were refunds on orders the user named in a request like "refund A103 *if policy allows it*", where the policy said no. The firewall checks *who asked*, not *whether policy allows it*. Closing that gap needs a policy check on the action itself.
+- **What the firewall cannot catch.** The violations left over were refunds on orders the user named in a request like "refund A103 *if policy allows it*", where the policy said no. The firewall checks *who asked*, not *whether policy allows it*. Closing that gap needs a policy check on the action itself, which the `policy` defense adds. It passes the scripted validation, blocking every policy-denied refund in the suite with zero false blocks. LLM results for it are pending.
 - **The firewall has a cost on some models.** Qwen kept retrying blocked calls, 602 of them, which doubled its latency from 11.6 s to 23.8 s. Mistral almost never tried an unauthorized action (3 blocked calls).
 - **Skipping tools was the main reliability failure.** Models answered without calling the tools they needed, for example guessing a policy instead of looking it up. Required-tool recall was 0.66–0.85, which is why answer accuracy is well above task success.
 

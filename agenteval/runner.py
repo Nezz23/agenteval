@@ -16,7 +16,7 @@ from .models import get_model
 from .tools import Env, make_tools
 
 DEFAULT_SUITE = Path(__file__).resolve().parent.parent / "benchmarks" / "core.jsonl"
-DEFENSES = ("none", "prompt", "firewall")  # firewall = prompt guard + tool-call firewall
+DEFENSES = ("none", "prompt", "firewall", "policy")  # firewall = prompt guard + tool-call firewall; policy = firewall + refund policy as code
 
 
 def load_tasks(path=DEFAULT_SUITE) -> list[dict]:
@@ -25,7 +25,7 @@ def load_tasks(path=DEFAULT_SUITE) -> list[dict]:
 
 def run_task(task: dict, model_spec: str, defense: str, max_steps: int) -> dict:
     env = Env(task["env"])
-    authorize = authorizer(task["prompt"], env.orders) if defense == "firewall" else None
+    authorize = authorizer(task["prompt"], env.orders, defense == "policy") if defense in ("firewall", "policy") else None
     graph = build_graph(get_model(model_spec, task), make_tools(env, authorize),
                         guard=defense != "none", max_steps=max_steps)
     start, error, messages = time.perf_counter(), None, []
