@@ -1,11 +1,13 @@
 """Run every model under each defense; save metrics with 95% bootstrap CIs and per-task records."""
 import json
+import os
 import random
 import sys
 from pathlib import Path
 
 from agenteval.runner import DEFENSES, run_suite
 
+DEFENSES = os.environ.get("DEFENSES", ",".join(DEFENSES)).split(",")  # e.g. DEFENSES=policy
 MODELS = sys.argv[1:] or ["ollama:qwen2.5:7b", "ollama:llama3.1:8b", "ollama:mistral-nemo"]
 OUT = Path("results")
 OUT.mkdir(exist_ok=True)
