@@ -3,6 +3,19 @@
 Benchmarks LLM agents on tool use, task completion and side-effect safety in a sandboxed
 customer-support environment, then red-teams them with seeded adversarial variants.
 
+## Episode replay
+
+![The same attack replayed with no defense and with the tool-call firewall](docs/replay.png)
+
+A small web app replays the 720 recorded episodes in `results/`: the same attack with and without the
+firewall, the results with confidence intervals, and every episode step by step. It runs no model, so it
+needs no GPU or API key.
+
+```bash
+pip install -r replay/requirements.txt
+streamlit run replay/streamlit_app.py
+```
+
 ## How it works
 
 ```
