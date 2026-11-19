@@ -5,6 +5,8 @@ customer-support environment, then red-teams them with seeded adversarial varian
 
 ## Episode replay
 
+**Live demo: [appapppy-dgwkydrt2wks6oyt78ucyp.streamlit.app](https://appapppy-dgwkydrt2wks6oyt78ucyp.streamlit.app)**
+
 ![The same attack replayed with no defense and with the tool-call firewall](docs/replay.png)
 
 A small web app replays the 720 recorded episodes in `results/`: the same attack with and without the
